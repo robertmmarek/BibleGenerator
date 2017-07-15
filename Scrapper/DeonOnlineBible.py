@@ -79,5 +79,9 @@ class PageScrapper(Scrapper):
         temp_text = ''.join(list(filter(filter_1, temp_text)))
         return temp_text
 
-deon_scrapper = DeonScrapper("http://www.biblia.deon.pl/", r"bible.txt")
-test_text = deon_scrapper.get_text(True)
+def main():
+    deon_scrapper = DeonScrapper("http://www.biblia.deon.pl/", r"bible.txt")
+    deon_scrapper.get_text(True)
+    
+if __name__ == "__main__":
+    main()
