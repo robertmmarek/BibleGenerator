@@ -5,40 +5,53 @@ Created on Wed Jul 12 21:19:50 2017
 @author: admin
 """
 
-import numpy as np
+
 import re
 import pickle
 import random
+import pandas as pnds
 
-def markov_train(text, n_gram=2, verbose=False, special_char_as_word=False):
-    tokens = tokenize(text, special_char_as_word)
+
+def markov_train(text, 
+                 n_gram=2, 
+                 verbose=False, 
+                 special_char_policy='remove', 
+                 special_chars=':\.,!\?'):
+    tokens = tokenize(text, special_char_policy, special_chars)
     markov_t = markov_tokens(tokens, n_gram)
-    markov_index = list(set(markov_t))
+    markov_index = list(markov_t.keys())
     markov_dict = {}
     for el, progress in zip(markov_index, range(0, len(markov_index))):
         if verbose:
-            print(progress / float(len(markov_index)))
-        count = float(markov_t.count(el))
+            print(progress / float(len(markov_index)))       
         words = el.split(sep=' ')
         dict_ind = ' '.join(words[0:n_gram])
         prev_val = []
         if dict_ind in markov_dict.keys():
             prev_val = markov_dict[dict_ind]
             
-        markov_dict[dict_ind] = prev_val+[(words[-1], count)]
+        markov_dict[dict_ind] = prev_val+[(words[-1], markov_t[el])]
         
     return markov_dict
     
 def markov_tokens(tokens, n_gram=2):
     create_token = lambda x: ' '.join([tokens[i] for i in range(x, x+n_gram+1)])
-    return [create_token(i) for i in range(0, len(tokens)-(n_gram+1))]
+    ret_tokens = {}
+    for i in range(0, len(tokens)-(n_gram+1)):
+        token = create_token(i)
+        if token in ret_tokens.keys():
+            ret_tokens[token] += 1
+        else:
+            ret_tokens[token] = 0
+    return ret_tokens
         
 
-def tokenize(text, special_char_as_word=False):
+def tokenize(text, special_char_policy='remove', special_chars=':\.,!\?'):
     text = text.lower()
-    regex_dict = {'separate': r'([A-Za-ząĄćĆęĘłŁńŃóÓśŚźŹŻż]+|[:;\.,!\?])',
-                  'remove': r'([A-Za-ząĄćĆęĘłŁńŃóÓśŚźŹŻż]+)'}
-    regex = regex_dict[special_char_as_word]
+    regex_dict = {'separate': r'([A-Za-ząĄćĆęĘłŁńŃóÓśŚźŹŻż]+|['+special_chars+'])',
+                  'remove': r'([A-Za-ząĄćĆęĘłŁńŃóÓśŚźŹŻż]+)',
+                  'join': r'([A-Za-ząĄćĆęĘłŁńŃóÓśŚźŹŻż'+special_chars+']+)'}
+    regex = regex_dict[special_char_policy]
     tokens = [match[0] for match in re.finditer(regex, text)]
     return tokens
 
@@ -72,6 +85,13 @@ class MarkovGenerator:
         
         return current_tokens
     
+    def calc_stats(self):
+        endings_number = [len(el) for el in self.markov_dict.values()]
+        endings_numbers_series = pnds.Series(endings_number)
+        counts = endings_numbers_series.value_counts(ascending=True, sort=True)
+        
+        return counts
+    
     def __random_element(self, elements):
         el_sum = sum([el[1] for el in elements])
         select = random.uniform(0, el_sum)
@@ -87,8 +107,12 @@ class MarkovGenerator:
         return ret
 
 def main():
-    text = load_text(r'bible.txt')
-    markov_dict = markov_train(text, n_gram=2, verbose=True, special_char_policy='remove')
+    text = load_text(r'input_markov.txt')
+    markov_dict = markov_train(text, 
+                               n_gram=2, 
+                               verbose=True, 
+                               special_char_policy='join',
+                               )
     markov_generator = MarkovGenerator(markov_dict)
     
     file = open(r'markov_generator', 'wb')
